@@ -1,0 +1,89 @@
+⚙️ Replict Core AI Prompt: Employee Management System (EMS) for Nano Flows AI Technologies Pvt. Ltd.
+
+Prompt:
+Design a modern, transparent, and intelligent Employee Management System (EMS) app UI for Nano Flows AI Technologies Pvt. Ltd.
+Use the attached Nano Flows AI logo in the app header and splash screen.
+
+The app should include the following modules and pages:
+
+🏠 1. Login & Onboarding
+
+Client Login/Sign Up Page with company creation option.
+
+Employee Login Page for registered users.
+
+Admin Login Page (Separate) for company admin.
+
+Stylish, futuristic UI with Nano Flows brand colors (blue & cyan gradient).
+
+👩‍💼 2. Employee Dashboard
+
+Display attendance tracker, leave status, salary info, and travel claims.
+
+Include a “Daily Activity Log” section for employees to record their day.
+
+Option to update biodata/profile (photo, contact, skills, role, etc.).
+
+Buttons for “Apply Leave”, “Add Travel Bill”, “View Payslip”, and “View Notifications”.
+
+🧑‍💻 3. Admin Dashboard
+
+Access to all employee data, attendance, leaves, salary & travel reports.
+
+Leave Approval Module – approve/reject with remarks.
+
+Salary Management Module – view & process monthly salary.
+
+Travel & Reimbursement Module – track and approve travel bills.
+
+Automated Mail & WhatsApp Integration:
+
+Daily attendance and activities automatically sent to each employee.
+
+Daily summary report auto-sent to admin email: nanoflowsvizag@gmail.com
+.
+
+Send buttons for “Mail All Employees” and “Send WhatsApp Updates.”
+
+🕓 4. Attendance System
+
+Employee check-in/check-out system.
+
+Auto-capture date, time, and location.
+
+Sync data to admin panel in real-time.
+
+✉️ 5. Notifications & Communication
+
+Admin can broadcast updates to all employees via WhatsApp and email.
+
+Notification center to display updates and approvals.
+
+🧩 6. Role-Based Access
+
+Admin – full control over system data.
+
+HR – manage attendance, leaves, and employee biodata.
+
+Marketing/Other Departments – limited access based on role.
+
+🎨 Design Style
+
+Professional, futuristic, and minimal UI.
+
+Use shades of blue, cyan, and white inspired by the Nano Flows AI logo.
+
+Clean dashboard layout with cards, charts, and icons.
+
+Ensure mobile and desktop responsive design.
+
+🔐 Credentials (for demo prototype only)
+
+Admin Email: nanoflowsvizag@gmail.com
+
+Admin Password: Kiran@1234#
+
+(Note: Credentials for design/demo only – not for live use.)
+
+Goal:
+Create a fully interactive Employee Management System interface that tracks attendance, automates notifications, manages HR processes, and syncs all employee data seamlessly — under the trusted innovation of Nano Flows AI Technologies Pvt. Ltd

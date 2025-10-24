@@ -1,0 +1,142 @@
+Upgrade both Admin Dashboard and Employee Dashboard of the Attendance Management System with dynamic database integration, data visualization, and improved UI/UX functionality.Ensure smooth API integration, proper error handling, and responsive frontend
+
+🧑‍💼 ADMIN DASHBOARD UPDATES
+
+1. inside  Attendance (Attendance Management)
+
+a. Export Attendance
+
+Add Start Date and End Date filters.
+
+When selected, the system should fetch attendance data between those dates dynamically from the database.
+
+Enable Export to Excel functionality using libraries like xlsx or SheetJS.
+
+The exported file should contain proper column headers: Employee Name, ID, Date, Check-in, Check-out, Status, etc.
+
+Ensure all previous and current records are accessible.
+
+b. Attendance Records
+
+Implement date filter functionality (on the right side).
+
+When a specific date is selected, show attendance data for that date for all employees.
+
+Fix the issue where even though data exists in the database, it is not displaying for certain dates.
+
+Ensure database queries properly return results for the selected date range.
+
+c. Display Employee Names
+
+Currently showing just "Employee" — replace it with actual Employee Name fetched from the database.
+
+Ensure names dynamically load and correspond correctly to employee IDs.
+
+inside Leave Management in Leave Requests remove Actions column  
+
+2. inside Reports (Reports & Analytics)
+
+a. Present Today Section
+
+Fix issue where “Present Today” is not loading.
+
+Load data dynamically from the database based on current date.
+
+Use efficient database queries and real-time updates if possible.
+
+
+b. Attendance Report (Graphs)
+
+Display two graphs for attendance data:
+
+Absents / Leaves Graph – visualizing total absences and leaves across all employees.
+
+Overall Employee Attendance Graph – showing overall attendance trends (present vs absent).
+
+Include Start Date and End Date filters for both graphs.
+
+Data must render dynamically and update automatically when dates are changed.
+
+Represent data day-wise, showing trends across the selected range.
+
+Use chart libraries like Chart.js, ECharts, or Recharts.
+
+Make the graphs visually appealing with legends, tooltips, and responsive design.
+
+
+
+c. Leave Report
+
+Under Leave Report (Approved):
+
+Show all approved leaves for all employees.
+
+Include fields like Employee Name, Leave Type, Duration, and Dates.
+
+
+👨‍💻 EMPLOYEE DASHBOARD UPDATES
+
+1. UI Simplification
+
+Remove the “Settings” section completely.
+
+Keep only the Notifications area, and also remove the "Settings" label above notifications.
+
+
+2. Attendance Section
+
+a. Attendance History (Graphs)
+
+Employee should be able to view their personal attendance records in graph format.
+
+Implement two types of graphs:
+
+Daily Attendance Graph
+
+Shows attendance data day-wise for the selected month.
+
+When a different month is selected, dates and attendance data should change dynamically.
+
+Include tooltips for each day (Present, Absent, Leave).
+
+Data fetched dynamically from database.
+
+Monthly Summary Graph
+
+Displays total number of Presents, Absents, and Leaves for the selected month.
+
+Use a different chart type (e.g., Pie Chart or Bar Graph).
+
+Make it visually appealing with color-coded statuses.
+
+Dynamically render data for each selected month.
+
+Ensure graphs are responsive, modern, and visually clean.
+
+Provide filters for month/year selection.
+
+
+
+🧠 Extra Enhancements (Recommended)
+
+Implement loading spinners for all dynamic data sections.
+
+Add error handling and empty state messages 
+
+Use real-time updates 
+
+Make sure all queries and endpoints are optimized for performance.
+
+
+
+✅ Expected Deliverables
+
+Fully functional Admin Dashboard and Employee Dashboard with all features above implemented.
+
+Dynamic data rendering for attendance, leave, and report sections.
+
+Excel export and graphical reporting working properly.
+
+
+
+Clean, bug-free, and responsive UI/UX across devices.

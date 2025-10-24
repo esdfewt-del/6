@@ -1,0 +1,78 @@
+Build a modern Employee Management System (EMS) for Nano Flows AI Software Technologies with full Admin Dashboard and connected HR automation services suitable for startups to enterprises.
+Your system should be AI-enhanced, secure, mobile-ready, scalable, and compliant with 2025 HR and data standards.
+
+Core Modules & Services
+1. Employees Service
+
+CRUD APIs for employee profiles (ID, name, department, salary, contact, join date, role).
+
+Role-based data access and smart profile editing.
+
+Active/inactive/terminated statuses and self-service updating.
+
+2. Attendance Service
+
+Smart login/logout tracking (manual/biometric/AI).
+
+Shift management, attendance summary, location & WFH tracking.
+
+Predictive analytics for absenteeism patterns and overtime insights.
+
+3. Leave Management Service
+
+Custom leave types, auto balance computation, AI leave forecasting.
+
+Multi-level manager + HR approval system with notifications.
+
+Payroll-integrated tracking and compliance locks.
+
+4. Salary Management Service
+
+Payroll automation (attendance-based salary, allowances, deductions).
+
+Auto payslip generation (PDF/Email/Download).
+
+Razorpay or Stripe payroll integration, real-time tax & PF updates.
+
+5. Travel Management Service
+
+Travel requests, approval workflows, budget tracking.
+
+Expense reimbursements with scanned receipts upload.
+
+Analytics for cost per department/project.
+
+6. Reports Service
+
+Report builder with custom filters for department/date/job role.
+
+Auto MIS reports for attendance, salaries, and performance.
+
+Export options (PDF, Excel, CSV) + AI insight summaries.
+
+7. Notifications Service
+
+Role-based alerts via email and dashboard pop-ups.
+
+Real-time notifications (WebSocket, Telegram, Slack supported).
+
+Automated reminders for leave approvals, payroll releases.
+
+8. Settings Service
+
+Master configuration panel (departments, roles, holidays, shifts).
+
+Access controls with role-based privileges.
+
+Theming, integration keys, compliance settings (GDPR/ISO-45001).
+
+2025 AI & Automation Features
+AI Chatbot for HR tasks (leave status, payslip check, help queries).
+
+Predictive HR analytics (attrition, performance, leave patterns).
+
+Smart goal tracking (OKRs/360° feedback).
+
+Blockchain-ready verification for employee authenticity.
+
+Workflow automation for routine approvals & payroll cycles.
