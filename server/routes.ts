@@ -682,10 +682,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get attendance records
       let attendance;
       if (startDate && endDate) {
+        // Set start date to beginning of day
+        const start = new Date(startDate as string);
+        start.setHours(0, 0, 0, 0);
+        
+        // Set end date to end of day (23:59:59.999)
+        const end = new Date(endDate as string);
+        end.setHours(23, 59, 59, 999);
+        
         attendance = await storage.getAttendanceByCompany(
           req.session.user!.companyId,
-          new Date(startDate as string),
-          new Date(endDate as string)
+          start,
+          end
         );
       } else {
         attendance = await storage.getAllAttendanceToday(req.session.user!.companyId);

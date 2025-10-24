@@ -47,6 +47,8 @@ export default function AttendanceManagementPage() {
   const today = new Date().toISOString().slice(0, 10);
   
   const [selectedDate, setSelectedDate] = useState(today);
+  const [exportStartDate, setExportStartDate] = useState(today);
+  const [exportEndDate, setExportEndDate] = useState(today);
 
   // Fetch all employees
   const { data: employees = [] } = useQuery<User[]>({
@@ -185,28 +187,94 @@ export default function AttendanceManagementPage() {
 
   const dailyChartData = last7Days.map(date => dateGroups[date]);
 
-  // Export to Excel - only selected date records
+  // Fetch attendance data for export date range
+  const { data: exportAttendanceData = [] } = useQuery<AttendanceRecord[]>({
+    queryKey: ['/api/attendance/company', exportStartDate, exportEndDate],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/attendance/company?startDate=${exportStartDate}&endDate=${exportEndDate}`,
+        { credentials: 'include' }
+      );
+      if (!response.ok) throw new Error('Failed to fetch attendance');
+      return response.json();
+    },
+    enabled: !!user && !!exportStartDate && !!exportEndDate,
+  });
+
+  // Create export records for ALL employees in date range
+  const exportEmployeeAttendanceMap = new Map<string, Map<string, AttendanceRecord>>();
+  
+  exportAttendanceData.forEach(record => {
+    const userId = record.userId;
+    const date = new Date(record.date).toISOString().slice(0, 10);
+    
+    if (!exportEmployeeAttendanceMap.has(userId)) {
+      exportEmployeeAttendanceMap.set(userId, new Map());
+    }
+    exportEmployeeAttendanceMap.get(userId)!.set(date, record);
+  });
+
+  // Generate all dates in range
+  const getDateRange = (start: string, end: string) => {
+    const dates = [];
+    const currentDate = new Date(start);
+    const endDate = new Date(end);
+    
+    while (currentDate <= endDate) {
+      dates.push(currentDate.toISOString().slice(0, 10));
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    return dates;
+  };
+
+  const exportDateRange = getDateRange(exportStartDate, exportEndDate);
+
+  // Export to Excel - date range with all employees
   const handleExport = () => {
-    if (selectedDateRecords.length === 0) {
+    const exportRecords: any[] = [];
+    
+    employees
+      .filter(emp => emp.isActive && emp.role === 'employee')
+      .forEach(emp => {
+        const employeeAttendance = exportEmployeeAttendanceMap.get(emp.id);
+        
+        exportDateRange.forEach(date => {
+          const attendance = employeeAttendance?.get(date);
+          
+          if (attendance) {
+            exportRecords.push({
+              'Employee Name': emp.fullName,
+              'Date': format(parseISO(date), 'MMM dd, yyyy'),
+              'Check In': attendance.checkIn ? format(parseISO(attendance.checkIn), 'hh:mm a') : '-',
+              'Check Out': attendance.checkOut ? format(parseISO(attendance.checkOut), 'hh:mm a') : attendance.checkIn ? 'Not checked out' : '-',
+              'Total Hours': attendance.totalHours || '-',
+              'Status': attendance.status.toUpperCase(),
+              'Location': attendance.location || '-',
+            });
+          } else {
+            exportRecords.push({
+              'Employee Name': emp.fullName,
+              'Date': format(parseISO(date), 'MMM dd, yyyy'),
+              'Check In': '-',
+              'Check Out': '-',
+              'Total Hours': '-',
+              'Status': 'ABSENT',
+              'Location': '-',
+            });
+          }
+        });
+      });
+
+    if (exportRecords.length === 0) {
       toast({
         title: 'No data to export',
-        description: `No present employees found for ${format(parseISO(selectedDate), 'MMM dd, yyyy')}.`,
+        description: 'No records found for the selected date range.',
         variant: 'destructive',
       });
       return;
     }
 
-    const exportData = selectedDateRecords.map(record => ({
-      'Employee Name': record.userName || 'Unknown',
-      'Date': format(parseISO(record.date), 'MMM dd, yyyy'),
-      'Check In': record.checkIn ? format(parseISO(record.checkIn), 'hh:mm a') : '-',
-      'Check Out': record.checkOut ? format(parseISO(record.checkOut), 'hh:mm a') : record.checkIn ? 'Not checked out' : '-',
-      'Total Hours': record.totalHours || '-',
-      'Status': record.status.toUpperCase(),
-      'Location': record.location || '-',
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(exportData);
+    const ws = XLSX.utils.json_to_sheet(exportRecords);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
 
@@ -215,12 +283,12 @@ export default function AttendanceManagementPage() {
       { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 15 }
     ];
 
-    const filename = `Attendance_${selectedDate}.xlsx`;
+    const filename = `Attendance_${exportStartDate}_to_${exportEndDate}.xlsx`;
     XLSX.writeFile(wb, filename);
 
     toast({
       title: 'Export successful',
-      description: `Exported ${selectedDateRecords.length} records to ${filename}`,
+      description: `Exported ${exportRecords.length} records to ${filename}`,
     });
   };
 
@@ -391,19 +459,47 @@ export default function AttendanceManagementPage() {
             Export Attendance
           </CardTitle>
           <CardDescription>
-            Download attendance records shown in the table below for selected date
+            Download attendance records for all employees in selected date range
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button
-            onClick={handleExport}
-            disabled={isLoading || selectedDateRecords.length === 0}
-            data-testid="button-export"
-            size="lg"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export to Excel ({selectedDateRecords.length} records for {format(parseISO(selectedDate), 'MMM dd')})
-          </Button>
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="space-y-2">
+              <Label htmlFor="export-start">Start Date</Label>
+              <Input
+                id="export-start"
+                type="date"
+                value={exportStartDate}
+                onChange={(e) => setExportStartDate(e.target.value)}
+                max={exportEndDate}
+                data-testid="input-export-start"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="export-end">End Date</Label>
+              <Input
+                id="export-end"
+                type="date"
+                value={exportEndDate}
+                onChange={(e) => setExportEndDate(e.target.value)}
+                min={exportStartDate}
+                max={today}
+                data-testid="input-export-end"
+              />
+            </div>
+            <div className="flex items-end md:col-span-2">
+              <Button
+                onClick={handleExport}
+                className="w-full"
+                disabled={isLoading || employees.length === 0}
+                data-testid="button-export"
+                size="lg"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export to Excel ({exportDateRange.length} day(s), {employees.filter(e => e.isActive && e.role === 'employee').length} employees)
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
