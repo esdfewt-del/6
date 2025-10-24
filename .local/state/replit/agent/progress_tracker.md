@@ -36,3 +36,9 @@
 [x] 36. Created attendance records with status='leave' for employees on leave
 [x] 37. Fixed seed data timing issue - leave types now created before leave records
 [x] 38. Verified database has correct data: 9 employees, 5 leave applications, attendance records showing leave status
+[x] 39. Fixed "Total Employees showing 0" - Changed endpoint from /api/users to /api/employees
+[x] 40. Attendance records table correctly displays: employee names, check-in time, check-out time, total hours, status badges, location
+[x] 41. Check-out times automatically update - employees have check-out times after they complete work
+[x] 42. Status badges color-coded: Green (Present), Orange (On Leave), Red (Absent)
+[x] 43. Table shows all 9 employees for today: 6 present with check-in/out times, 3 on leave
+[x] 44. Date selector works for any day - shows attendance records for selected date

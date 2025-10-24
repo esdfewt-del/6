@@ -52,7 +52,7 @@ export default function AttendanceManagementPage() {
 
   // Fetch all employees
   const { data: employees = [] } = useQuery<User[]>({
-    queryKey: ['/api/users'],
+    queryKey: ['/api/employees'],
     enabled: !!user,
   });
 
