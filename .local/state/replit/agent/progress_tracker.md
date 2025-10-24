@@ -42,3 +42,18 @@
 [x] 42. Status badges color-coded: Green (Present), Orange (On Leave), Red (Absent)
 [x] 43. Table shows all 9 employees for today: 6 present with check-in/out times, 3 on leave
 [x] 44. Date selector works for any day - shows attendance records for selected date
+
+## Reports & Analytics Page - Monthly Charts Implementation
+[x] 45. Changed default date range to 6 months (instead of 7 days) for better monthly view
+[x] 46. Implemented monthly attendance data processing - groups attendance by month
+[x] 47. Created LINE CHART for monthly attendance showing ONLY PRESENT employees
+[x] 48. Line chart features: green color (#22c55e), stroke width 3, shows month labels
+[x] 49. Implemented monthly leave data processing - groups approved leaves by month
+[x] 50. Created RADAR CHART (capability analysis) for monthly approved leaves
+[x] 51. Radar chart features: blue color (#3b82f6), fill opacity 0.6, polar grid display
+[x] 52. Fixed query parameters issue - properly formatted query strings for API calls
+[x] 53. Added demo data: attendance records for May-October 2025 (5-9 records per month)
+[x] 54. Added demo data: approved leave records for May-October 2025 (1-5 per month)
+[x] 55. Attendance Report shows: Total Present, Total Records, Attendance Rate statistics
+[x] 56. Leave Report shows: Total Approved, Total Days, Avg Days/Leave statistics
+[x] 57. Both charts display meaningful monthly trends across 6 months of data
