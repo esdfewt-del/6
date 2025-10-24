@@ -30,3 +30,9 @@
 [x] 30. New features: Daily view for all employees, donut chart, 7-day bar chart, export all statuses
 [x] 31. Final verification - npm dependencies reinstalled and workflow restarted with webview output
 [x] 32. Application running successfully on port 5000 with all features operational (October 24, 2025)
+[x] 33. Added 8 additional employees to the database (total 9 employees)
+[x] 34. Created approved leave records for today (Oct 24) - Mike Wilson, Lisa Chen, Anna Garcia
+[x] 35. Created approved leave records for yesterday (Oct 23) - Emily Brown, Robert Martin
+[x] 36. Created attendance records with status='leave' for employees on leave
+[x] 37. Fixed seed data timing issue - leave types now created before leave records
+[x] 38. Verified database has correct data: 9 employees, 5 leave applications, attendance records showing leave status

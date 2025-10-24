@@ -5,7 +5,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
 import { db } from "./db";
-import { companies, leaveTypes, users, attendance, holidays } from "../shared/schema";
+import { companies, leaveTypes, users, attendance, holidays, leaves } from "../shared/schema";
 import { eq } from "drizzle-orm";
 import os from 'os';
 import bcrypt from "bcryptjs";
@@ -61,8 +61,236 @@ async function seedInitialData() {
       
       console.log(`✅ Created employee user: ${employeeUser.email} / password: employee123`);
       
-      // Create some sample attendance records for the employee
+      // Create more employees
+      const moreEmployees = [
+        {
+          email: 'sarah.johnson@nanoflows.com',
+          fullName: 'Sarah Johnson',
+          department: 'Engineering',
+          position: 'Senior Developer',
+        },
+        {
+          email: 'mike.wilson@nanoflows.com',
+          fullName: 'Mike Wilson',
+          department: 'Design',
+          position: 'UI/UX Designer',
+        },
+        {
+          email: 'emily.brown@nanoflows.com',
+          fullName: 'Emily Brown',
+          department: 'Marketing',
+          position: 'Marketing Manager',
+        },
+        {
+          email: 'david.lee@nanoflows.com',
+          fullName: 'David Lee',
+          department: 'Sales',
+          position: 'Sales Executive',
+        },
+        {
+          email: 'lisa.chen@nanoflows.com',
+          fullName: 'Lisa Chen',
+          department: 'HR',
+          position: 'HR Specialist',
+        },
+        {
+          email: 'robert.martin@nanoflows.com',
+          fullName: 'Robert Martin',
+          department: 'Engineering',
+          position: 'Backend Developer',
+        },
+        {
+          email: 'anna.garcia@nanoflows.com',
+          fullName: 'Anna Garcia',
+          department: 'Finance',
+          position: 'Financial Analyst',
+        },
+        {
+          email: 'james.taylor@nanoflows.com',
+          fullName: 'James Taylor',
+          department: 'Engineering',
+          position: 'DevOps Engineer',
+        },
+      ];
+
+      const allEmployees = [employeeUser];
+      
+      for (const empData of moreEmployees) {
+        const hashedPassword = await bcrypt.hash('employee123', 10);
+        const newEmployee = await storage.createUser({
+          companyId: company.id,
+          email: empData.email,
+          password: hashedPassword,
+          fullName: empData.fullName,
+          role: 'employee',
+          department: empData.department,
+          position: empData.position,
+          phone: `+123456789${Math.floor(Math.random() * 100)}`,
+          isActive: true,
+        });
+        allEmployees.push(newEmployee);
+      }
+      
+      console.log(`✅ Created ${allEmployees.length} employees`);
+
+      // Create leave types first
+      const defaultLeaveTypes = [
+        {
+          companyId: company.id,
+          name: 'Sick Leave',
+          code: 'SL',
+          maxDays: 12,
+          carryForward: false,
+          isPaid: true,
+          requiresApproval: true,
+          description: 'Medical leave for illness or health issues',
+          isActive: true,
+        },
+        {
+          companyId: company.id,
+          name: 'Casual Leave',
+          code: 'CL',
+          maxDays: 12,
+          carryForward: true,
+          isPaid: true,
+          requiresApproval: true,
+          description: 'Personal leave for casual purposes',
+          isActive: true,
+        },
+        {
+          companyId: company.id,
+          name: 'Annual Leave',
+          code: 'AL',
+          maxDays: 21,
+          carryForward: true,
+          isPaid: true,
+          requiresApproval: true,
+          description: 'Annual vacation leave',
+          isActive: true,
+        },
+        {
+          companyId: company.id,
+          name: 'Maternity Leave',
+          code: 'ML',
+          maxDays: 90,
+          carryForward: false,
+          isPaid: true,
+          requiresApproval: true,
+          description: 'Maternity leave for female employees',
+          isActive: true,
+        },
+        {
+          companyId: company.id,
+          name: 'Paternity Leave',
+          code: 'PL',
+          maxDays: 15,
+          carryForward: false,
+          isPaid: true,
+          requiresApproval: true,
+          description: 'Paternity leave for male employees',
+          isActive: true,
+        },
+      ];
+
+      for (const leaveType of defaultLeaveTypes) {
+        await storage.createLeaveType(leaveType);
+      }
+
+      console.log('✅ Created leave types');
+
+      // Get leave types for creating leave applications
+      const companyLeaveTypes = await db.select().from(leaveTypes).where(eq(leaveTypes.companyId, company.id));
+      const sickLeaveType = companyLeaveTypes.find(lt => lt.code === 'SL');
+      const casualLeaveType = companyLeaveTypes.find(lt => lt.code === 'CL');
+
+      // Create some sample attendance records and leaves
       const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      // Employees on leave today
+      const employeesOnLeaveToday = [allEmployees[2], allEmployees[5], allEmployees[7]]; // Sarah, Robert, James
+      
+      // Employees on leave yesterday
+      const employeesOnLeaveYesterday = [allEmployees[3], allEmployees[6]]; // Mike, Anna
+
+      // Create leave applications and attendance records for employees on leave today
+      for (const emp of employeesOnLeaveToday) {
+        const leaveType = Math.random() > 0.5 ? sickLeaveType : casualLeaveType;
+        if (leaveType) {
+          const leave = await storage.createLeave({
+            userId: emp.id,
+            leaveTypeId: leaveType.id,
+            leaveType: leaveType.name,
+            startDate: today,
+            endDate: today,
+            totalDays: '1',
+            reason: 'Personal reasons',
+          });
+
+          // Approve the leave
+          await db.update(leaves).set({
+            status: 'approved',
+            approvedBy: adminUser.id,
+            approvedAt: new Date(),
+          }).where(eq(leaves.id, leave.id));
+
+          // Create attendance record with status 'leave'
+          const todayDate = new Date(today);
+          todayDate.setHours(0, 0, 0, 0);
+          
+          await storage.createAttendance({
+            userId: emp.id,
+            checkIn: todayDate,
+            checkOut: null,
+            date: todayDate,
+            status: 'leave',
+            totalHours: '0',
+            location: '-',
+          });
+        }
+      }
+
+      // Create leave applications and attendance records for employees on leave yesterday
+      for (const emp of employeesOnLeaveYesterday) {
+        const leaveType = Math.random() > 0.5 ? sickLeaveType : casualLeaveType;
+        if (leaveType) {
+          const leave = await storage.createLeave({
+            userId: emp.id,
+            leaveTypeId: leaveType.id,
+            leaveType: leaveType.name,
+            startDate: yesterday,
+            endDate: yesterday,
+            totalDays: '1',
+            reason: 'Medical appointment',
+          });
+
+          // Approve the leave
+          await db.update(leaves).set({
+            status: 'approved',
+            approvedBy: adminUser.id,
+            approvedAt: new Date(),
+          }).where(eq(leaves.id, leave.id));
+
+          // Create attendance record with status 'leave'
+          const yesterdayDate = new Date(yesterday);
+          yesterdayDate.setHours(0, 0, 0, 0);
+          
+          await storage.createAttendance({
+            userId: emp.id,
+            checkIn: yesterdayDate,
+            checkOut: null,
+            date: yesterdayDate,
+            status: 'leave',
+            totalHours: '0',
+            location: '-',
+          });
+        }
+      }
+
+      console.log('✅ Created leave records for today and yesterday');
+
+      // Create regular attendance for other employees
       for (let i = 0; i < 15; i++) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
@@ -71,27 +299,38 @@ async function seedInitialData() {
         if (date.getDay() === 0 || date.getDay() === 6) {
           continue;
         }
-        
-        const checkIn = new Date(date);
-        checkIn.setHours(9, 0, 0, 0);
-        
-        const checkOut = new Date(date);
-        checkOut.setHours(17 + Math.floor(Math.random() * 3), 0, 0, 0);
-        
-        const totalHours = (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60);
-        
-        await storage.createAttendance({
-          userId: employeeUser.id,
-          checkIn,
-          checkOut,
-          date,
-          status: 'present',
-          totalHours: totalHours.toString(),
-          location: 'Office',
-        });
+
+        const dateStr = date.toISOString().slice(0, 10);
+        const todayStr = today.toISOString().slice(0, 10);
+        const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+        // Create attendance for employees NOT on leave
+        for (const emp of allEmployees) {
+          // Skip if employee is on leave today or yesterday
+          if (dateStr === todayStr && employeesOnLeaveToday.includes(emp)) continue;
+          if (dateStr === yesterdayStr && employeesOnLeaveYesterday.includes(emp)) continue;
+
+          const checkIn = new Date(date);
+          checkIn.setHours(9, 0, 0, 0);
+          
+          const checkOut = new Date(date);
+          checkOut.setHours(17 + Math.floor(Math.random() * 3), 0, 0, 0);
+          
+          const totalHours = (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60);
+          
+          await storage.createAttendance({
+            userId: emp.id,
+            checkIn,
+            checkOut,
+            date,
+            status: 'present',
+            totalHours: totalHours.toString(),
+            location: 'Office',
+          });
+        }
       }
       
-      console.log('✅ Created sample attendance records');
+      console.log('✅ Created sample attendance records for all employees');
       
       // Create some holidays
       const currentYear = new Date().getFullYear();
