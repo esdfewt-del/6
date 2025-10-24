@@ -7,11 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, Calendar, Download, Clock, TrendingUp } from 'lucide-react';
-import { format, parseISO, subDays } from 'date-fns';
+import { Users, UserCheck, Calendar, Download } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 interface AttendanceRecord {
   id: string;
@@ -25,11 +25,19 @@ interface AttendanceRecord {
   location?: string;
 }
 
+interface User {
+  id: string;
+  fullName: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+}
+
 const COLORS = {
+  total: '#f97316',
   present: '#22c55e',
   absent: '#ef4444',
   leave: '#f59e0b',
-  halfDay: '#3b82f6',
 };
 
 export default function AttendanceManagementPage() {
@@ -37,18 +45,36 @@ export default function AttendanceManagementPage() {
   const { toast } = useToast();
   
   const today = new Date().toISOString().slice(0, 10);
-  const thirtyDaysAgo = subDays(new Date(), 30).toISOString().slice(0, 10);
   
   const [selectedDate, setSelectedDate] = useState(today);
-  const [exportStartDate, setExportStartDate] = useState(thirtyDaysAgo);
-  const [exportEndDate, setExportEndDate] = useState(today);
 
-  // Fetch attendance data for date range
+  // Fetch all employees
+  const { data: employees = [] } = useQuery<User[]>({
+    queryKey: ['/api/users'],
+    enabled: !!user,
+  });
+
+  // Fetch attendance data for selected date
   const { data: attendanceData = [], isLoading } = useQuery<AttendanceRecord[]>({
-    queryKey: ['/api/attendance/company', exportStartDate, exportEndDate],
+    queryKey: ['/api/attendance/company', selectedDate, selectedDate],
     queryFn: async () => {
       const response = await fetch(
-        `/api/attendance/company?startDate=${exportStartDate}&endDate=${exportEndDate}`,
+        `/api/attendance/company?startDate=${selectedDate}&endDate=${selectedDate}`,
+        { credentials: 'include' }
+      );
+      if (!response.ok) throw new Error('Failed to fetch attendance');
+      return response.json();
+    },
+    enabled: !!user && !!selectedDate,
+    refetchInterval: 30000,
+  });
+
+  // Fetch today's attendance separately for stats
+  const { data: todayAttendanceData = [] } = useQuery<AttendanceRecord[]>({
+    queryKey: ['/api/attendance/company', today, today],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/attendance/company?startDate=${today}&endDate=${today}`,
         { credentials: 'include' }
       );
       if (!response.ok) throw new Error('Failed to fetch attendance');
@@ -58,64 +84,123 @@ export default function AttendanceManagementPage() {
     refetchInterval: 30000,
   });
 
-  // Filter records for selected date - only show PRESENT employees
-  const selectedDateRecords = attendanceData.filter(record => {
-    const recordDate = new Date(record.date).toISOString().slice(0, 10);
-    return recordDate === selectedDate && record.status === 'present';
-  });
+  // Calculate total active employees
+  const totalEmployees = employees.filter(emp => emp.isActive && emp.role === 'employee').length;
 
-  // Calculate overview stats
-  const totalRecords = attendanceData.length;
-  const presentCount = attendanceData.filter(r => r.status === 'present').length;
-  const absentCount = attendanceData.filter(r => r.status === 'absent').length;
-  const leaveCount = attendanceData.filter(r => r.status === 'leave').length;
-  
   // Today's stats
-  const todayRecords = attendanceData.filter(record => {
-    const recordDate = new Date(record.date).toISOString().slice(0, 10);
-    return recordDate === today;
-  });
-  const todayPresent = todayRecords.filter(r => r.status === 'present').length;
+  const todayPresent = todayAttendanceData.filter(r => r.status === 'present').length;
+  const todayOnLeave = todayAttendanceData.filter(r => r.status === 'leave').length;
 
-  // Prepare chart data - Group by date
-  const dateGroups = attendanceData.reduce((acc, record) => {
-    const date = new Date(record.date).toISOString().slice(0, 10);
-    if (!acc[date]) {
-      acc[date] = { date, present: 0, absent: 0, leave: 0 };
-    }
-    if (record.status === 'present') acc[date].present++;
-    else if (record.status === 'absent') acc[date].absent++;
-    else if (record.status === 'leave') acc[date].leave++;
-    return acc;
-  }, {} as Record<string, { date: string; present: number; absent: number; leave: number }>);
+  // Selected date stats
+  const selectedDatePresent = attendanceData.filter(r => r.status === 'present').length;
+  const selectedDateOnLeave = attendanceData.filter(r => r.status === 'leave').length;
+  const selectedDateAbsent = totalEmployees - selectedDatePresent - selectedDateOnLeave;
 
-  const chartData = Object.values(dateGroups)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(-14); // Last 14 days
+  // Create attendance records for ALL employees for selected date
+  const employeeAttendanceMap = new Map(
+    attendanceData.map(record => [record.userId, record])
+  );
 
-  // Pie chart data
-  const pieData = [
-    { name: 'Present', value: presentCount, color: COLORS.present },
-    { name: 'Absent', value: absentCount, color: COLORS.absent },
-    { name: 'On Leave', value: leaveCount, color: COLORS.leave },
+  const selectedDateRecords = employees
+    .filter(emp => emp.isActive && emp.role === 'employee')
+    .map(emp => {
+      const attendance = employeeAttendanceMap.get(emp.id);
+      if (attendance) {
+        return { ...attendance, userName: emp.fullName };
+      }
+      // Employee has no attendance record - mark as absent
+      return {
+        id: `absent-${emp.id}`,
+        userId: emp.id,
+        userName: emp.fullName,
+        date: selectedDate,
+        checkIn: '',
+        checkOut: null,
+        totalHours: null,
+        status: 'absent',
+        location: '-',
+      } as AttendanceRecord;
+    })
+    .sort((a, b) => {
+      // Sort by status: present first, then leave, then absent
+      const statusOrder = { present: 0, leave: 1, absent: 2 };
+      return statusOrder[a.status as keyof typeof statusOrder] - statusOrder[b.status as keyof typeof statusOrder];
+    });
+
+  // Donut chart data for selected date
+  const donutData = [
+    { name: 'Present', value: selectedDatePresent, color: COLORS.present },
+    { name: 'Absent', value: selectedDateAbsent, color: COLORS.absent },
+    { name: 'On Leave', value: selectedDateOnLeave, color: COLORS.leave },
   ].filter(item => item.value > 0);
 
-  // Export to Excel
+  // Calculate daily stats for last 7 days for the bar chart
+  const { data: weekAttendanceData = [] } = useQuery<AttendanceRecord[]>({
+    queryKey: ['/api/attendance/company/week'],
+    queryFn: async () => {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 6);
+      
+      const start = startDate.toISOString().slice(0, 10);
+      const end = endDate.toISOString().slice(0, 10);
+      
+      const response = await fetch(
+        `/api/attendance/company?startDate=${start}&endDate=${end}`,
+        { credentials: 'include' }
+      );
+      if (!response.ok) throw new Error('Failed to fetch attendance');
+      return response.json();
+    },
+    enabled: !!user,
+    refetchInterval: 60000,
+  });
+
+  // Generate complete 7-day date range
+  const generateLast7Days = () => {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      days.push(date.toISOString().slice(0, 10));
+    }
+    return days;
+  };
+
+  const last7Days = generateLast7Days();
+
+  // Initialize all days with zero attendance
+  const dateGroups = last7Days.reduce((acc, date) => {
+    acc[date] = { date, present: 0 };
+    return acc;
+  }, {} as Record<string, { date: string; present: number }>);
+
+  // Fill in actual attendance counts
+  weekAttendanceData.forEach(record => {
+    const date = new Date(record.date).toISOString().slice(0, 10);
+    if (dateGroups[date] && record.status === 'present') {
+      dateGroups[date].present++;
+    }
+  });
+
+  const dailyChartData = last7Days.map(date => dateGroups[date]);
+
+  // Export to Excel - only selected date records
   const handleExport = () => {
-    if (attendanceData.length === 0) {
+    if (selectedDateRecords.length === 0) {
       toast({
         title: 'No data to export',
-        description: 'No attendance records found for the selected date range.',
+        description: `No present employees found for ${format(parseISO(selectedDate), 'MMM dd, yyyy')}.`,
         variant: 'destructive',
       });
       return;
     }
 
-    const exportData = attendanceData.map(record => ({
+    const exportData = selectedDateRecords.map(record => ({
       'Employee Name': record.userName || 'Unknown',
       'Date': format(parseISO(record.date), 'MMM dd, yyyy'),
-      'Check In': format(parseISO(record.checkIn), 'hh:mm a'),
-      'Check Out': record.checkOut ? format(parseISO(record.checkOut), 'hh:mm a') : 'Not checked out',
+      'Check In': record.checkIn ? format(parseISO(record.checkIn), 'hh:mm a') : '-',
+      'Check Out': record.checkOut ? format(parseISO(record.checkOut), 'hh:mm a') : record.checkIn ? 'Not checked out' : '-',
       'Total Hours': record.totalHours || '-',
       'Status': record.status.toUpperCase(),
       'Location': record.location || '-',
@@ -130,12 +215,12 @@ export default function AttendanceManagementPage() {
       { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 15 }
     ];
 
-    const filename = `Attendance_${exportStartDate}_to_${exportEndDate}.xlsx`;
+    const filename = `Attendance_${selectedDate}.xlsx`;
     XLSX.writeFile(wb, filename);
 
     toast({
       title: 'Export successful',
-      description: `Exported ${attendanceData.length} records to ${filename}`,
+      description: `Exported ${selectedDateRecords.length} records to ${filename}`,
     });
   };
 
@@ -146,22 +231,22 @@ export default function AttendanceManagementPage() {
         <h1 className="text-3xl font-serif font-bold" data-testid="text-attendance-title">
           Attendance Management
         </h1>
-        <p className="text-muted-foreground mt-1">Monitor and manage employee attendance</p>
+        <p className="text-muted-foreground mt-1">Daily attendance view for all employees</p>
       </div>
 
-      {/* Attendance Overview - Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* Top Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Records</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="stat-total-records">
-              {totalRecords}
+            <div className="text-2xl font-bold" data-testid="stat-total-employees">
+              {totalEmployees}
             </div>
             <p className="text-xs text-muted-foreground">
-              {exportStartDate} to {exportEndDate}
+              Active employees in system
             </p>
           </CardContent>
         </Card>
@@ -169,7 +254,7 @@ export default function AttendanceManagementPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Present Today</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500" />
+            <UserCheck className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600" data-testid="stat-present-today">
@@ -183,97 +268,111 @@ export default function AttendanceManagementPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Present</CardTitle>
-            <Clock className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="stat-total-present">
-              {presentCount}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              In selected period
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">On Leave</CardTitle>
             <Calendar className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="stat-on-leave">
-              {leaveCount}
+            <div className="text-2xl font-bold text-orange-600" data-testid="stat-on-leave">
+              {todayOnLeave}
             </div>
             <p className="text-xs text-muted-foreground">
-              In selected period
+              Employees on leave today
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Daily Attendance Stats - Charts */}
+      {/* Charts Section */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Bar Chart - Daily Trend */}
+        {/* Donut Chart - Attendance Distribution for Selected Day */}
         <Card>
           <CardHeader>
-            <CardTitle>Daily Attendance Trend</CardTitle>
-            <CardDescription>Last 14 days attendance breakdown</CardDescription>
+            <CardTitle>Attendance Distribution</CardTitle>
+            <CardDescription>
+              Breakdown for {format(parseISO(selectedDate), 'MMM dd, yyyy')}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            {chartData.length > 0 ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-center gap-2">
+                <Label htmlFor="chart-date" className="text-sm">Select Date:</Label>
+                <Input
+                  id="chart-date"
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  max={today}
+                  className="w-auto"
+                  data-testid="input-chart-date"
+                />
+              </div>
+              
+              {donutData.length > 0 ? (
+                <div className="relative">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={donutData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        paddingAngle={2}
+                        dataKey="value"
+                        label={({ name, value }) => `${name}: ${value}`}
+                      >
+                        {donutData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                    <div className="text-3xl font-bold" style={{ color: COLORS.total }}>
+                      {totalEmployees}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Total</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex h-[300px] items-center justify-center text-muted-foreground">
+                  No data available for this date
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Bar Chart - Daily Attendance (Last 7 Days) */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Daily Attendance</CardTitle>
+            <CardDescription>Employees present per day (Last 7 days)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {dailyChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartData}>
+                <BarChart data={dailyChartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="date" 
                     tickFormatter={(date) => format(parseISO(date), 'MMM dd')}
                   />
-                  <YAxis />
+                  <YAxis label={{ value: 'Employees', angle: -90, position: 'insideLeft' }} />
                   <Tooltip 
                     labelFormatter={(date) => format(parseISO(date as string), 'MMM dd, yyyy')}
+                    formatter={(value) => [`${value} employees`, 'Present']}
                   />
-                  <Legend />
-                  <Bar dataKey="present" fill={COLORS.present} name="Present" />
-                  <Bar dataKey="absent" fill={COLORS.absent} name="Absent" />
-                  <Bar dataKey="leave" fill={COLORS.leave} name="Leave" />
+                  <Bar 
+                    dataKey="present" 
+                    fill={COLORS.present} 
+                    name="Present" 
+                    radius={[8, 8, 0, 0]}
+                  />
                 </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex h-[300px] items-center justify-center text-muted-foreground">
-                No data available
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Pie Chart - Overall Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Attendance Distribution</CardTitle>
-            <CardDescription>Overall breakdown for selected period</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {pieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, value }) => `${name}: ${value}`}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
               </ResponsiveContainer>
             ) : (
               <div className="flex h-[300px] items-center justify-center text-muted-foreground">
@@ -291,43 +390,20 @@ export default function AttendanceManagementPage() {
             <Download className="h-5 w-5" />
             Export Attendance
           </CardTitle>
-          <CardDescription>Download attendance records for custom date range</CardDescription>
+          <CardDescription>
+            Download attendance records shown in the table below for selected date
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-4">
-            <div className="space-y-2">
-              <Label htmlFor="export-start">Start Date</Label>
-              <Input
-                id="export-start"
-                type="date"
-                value={exportStartDate}
-                onChange={(e) => setExportStartDate(e.target.value)}
-                data-testid="input-export-start"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="export-end">End Date</Label>
-              <Input
-                id="export-end"
-                type="date"
-                value={exportEndDate}
-                onChange={(e) => setExportEndDate(e.target.value)}
-                max={today}
-                data-testid="input-export-end"
-              />
-            </div>
-            <div className="flex items-end md:col-span-2">
-              <Button
-                onClick={handleExport}
-                className="w-full"
-                disabled={isLoading}
-                data-testid="button-export"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export to Excel ({attendanceData.length} records)
-              </Button>
-            </div>
-          </div>
+          <Button
+            onClick={handleExport}
+            disabled={isLoading || selectedDateRecords.length === 0}
+            data-testid="button-export"
+            size="lg"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export to Excel ({selectedDateRecords.length} records for {format(parseISO(selectedDate), 'MMM dd')})
+          </Button>
         </CardContent>
       </Card>
 
@@ -337,7 +413,7 @@ export default function AttendanceManagementPage() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <CardTitle>Attendance Records</CardTitle>
-              <CardDescription>Only showing employees marked PRESENT on selected date</CardDescription>
+              <CardDescription>All employees for {format(parseISO(selectedDate), 'MMMM dd, yyyy')}</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Label htmlFor="selected-date" className="text-sm">Select Date:</Label>
@@ -361,7 +437,7 @@ export default function AttendanceManagementPage() {
           ) : selectedDateRecords.length > 0 ? (
             <div className="space-y-4">
               <div className="text-sm text-muted-foreground">
-                Showing {selectedDateRecords.length} record(s) for {format(parseISO(selectedDate), 'MMMM dd, yyyy')}
+                Showing {selectedDateRecords.length} employee(s) - {selectedDatePresent} present, {selectedDateOnLeave} on leave, {selectedDateAbsent} absent
               </div>
               <div className="border rounded-lg overflow-hidden">
                 <Table>
@@ -382,12 +458,17 @@ export default function AttendanceManagementPage() {
                           {record.userName || 'Unknown'}
                         </TableCell>
                         <TableCell>
-                          {format(parseISO(record.checkIn), 'hh:mm a')}
+                          {record.checkIn 
+                            ? format(parseISO(record.checkIn), 'hh:mm a')
+                            : <span className="text-muted-foreground">-</span>
+                          }
                         </TableCell>
                         <TableCell>
                           {record.checkOut 
                             ? format(parseISO(record.checkOut), 'hh:mm a')
-                            : <span className="text-muted-foreground">Not yet</span>
+                            : record.checkIn 
+                              ? <span className="text-muted-foreground">Not yet</span>
+                              : <span className="text-muted-foreground">-</span>
                           }
                         </TableCell>
                         <TableCell>
@@ -395,7 +476,7 @@ export default function AttendanceManagementPage() {
                         </TableCell>
                         <TableCell>
                           <Badge 
-                            variant={record.status === 'present' ? 'default' : 'secondary'}
+                            variant="default"
                             className={
                               record.status === 'present' ? 'bg-green-500' :
                               record.status === 'absent' ? 'bg-red-500' :
@@ -416,7 +497,7 @@ export default function AttendanceManagementPage() {
             </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
-              No employees marked as PRESENT on {format(parseISO(selectedDate), 'MMMM dd, yyyy')}
+              No employees found for {format(parseISO(selectedDate), 'MMMM dd, yyyy')}
             </div>
           )}
         </CardContent>
