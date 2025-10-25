@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BarChart as BarChartIcon, Users, Calendar, DollarSign } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, AreaChart, Area } from 'recharts';
 import {
   Table,
   TableBody,
@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { format, eachDayOfInterval, parseISO, startOfDay } from 'date-fns';
+import { format, eachDayOfInterval, parseISO, startOfDay, startOfMonth, endOfMonth } from 'date-fns';
 
 interface DashboardKPIs {
   totalEmployees: number;
@@ -62,10 +62,14 @@ const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3
 export default function AdminReportsPage() {
   const { user } = useAuth();
   const today = format(new Date(), 'yyyy-MM-dd');
-  // Default to last 6 months for better monthly view
-  const sixMonthsAgo = format(new Date(Date.now() - 180 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
-  const [startDate, setStartDate] = useState(sixMonthsAgo);
-  const [endDate, setEndDate] = useState(today);
+  const currentMonthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+  const currentMonthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+  
+  // Separate date ranges for Attendance and Leave reports
+  const [attendanceStartDate, setAttendanceStartDate] = useState(currentMonthStart);
+  const [attendanceEndDate, setAttendanceEndDate] = useState(currentMonthEnd);
+  const [leaveStartDate, setLeaveStartDate] = useState(currentMonthStart);
+  const [leaveEndDate, setLeaveEndDate] = useState(currentMonthEnd);
 
   // Get dashboard KPIs
   const { data: kpis, isLoading: kpisLoading } = useQuery<DashboardKPIs>({
@@ -73,28 +77,34 @@ export default function AdminReportsPage() {
     enabled: !!user,
   });
 
+  // Get approved leaves for current month (for KPI card)
+  const { data: currentMonthLeaves } = useQuery<LeaveReport>({
+    queryKey: [`/api/reports/leaves?startDate=${currentMonthStart}&endDate=${currentMonthEnd}&status=approved`],
+    enabled: !!user,
+  });
+
   // Get all attendance records for the company with date range
   const { data: allAttendance, isLoading: attendanceLoading } = useQuery<Attendance[]>({
-    queryKey: ['/api/attendance/company', startDate, endDate],
-    enabled: !!user && !!startDate && !!endDate,
+    queryKey: ['/api/attendance/company', attendanceStartDate, attendanceEndDate],
+    enabled: !!user && !!attendanceStartDate && !!attendanceEndDate,
   });
 
   // Get leave report - only approved leaves
   const { data: leaveReport, isLoading: leaveLoading } = useQuery<LeaveReport>({
-    queryKey: [`/api/reports/leaves?startDate=${startDate}&endDate=${endDate}&status=approved`],
-    enabled: !!user && !!startDate && !!endDate,
+    queryKey: [`/api/reports/leaves?startDate=${leaveStartDate}&endDate=${leaveEndDate}&status=approved`],
+    enabled: !!user && !!leaveStartDate && !!leaveEndDate,
   });
 
   // Process attendance data for month-wise graphs (only present employees)
   const getMonthWiseAttendanceData = () => {
-    if (!allAttendance || !startDate || !endDate) return [];
+    if (!allAttendance || !attendanceStartDate || !attendanceEndDate) return [];
     
     // Group by month
     const monthlyData: { [key: string]: { present: number; total: number } } = {};
     
     allAttendance.forEach(record => {
-      const monthKey = format(parseISO(record.date), 'yyyy-MM'); // e.g., "2025-10"
-      const monthLabel = format(parseISO(record.date), 'MMM yyyy'); // e.g., "Oct 2025"
+      const monthKey = format(parseISO(record.date), 'yyyy-MM');
+      const monthLabel = format(parseISO(record.date), 'MMM yyyy');
       
       if (!monthlyData[monthKey]) {
         monthlyData[monthKey] = { present: 0, total: 0 };
@@ -123,7 +133,7 @@ export default function AdminReportsPage() {
   const totalPresent = monthWiseData.reduce((sum, d) => sum + d.present, 0);
   const totalRecords = monthWiseData.reduce((sum, d) => sum + d.total, 0);
 
-  // Process leave data for month-wise radar chart (only approved leaves)
+  // Process leave data for month-wise area chart (only approved leaves)
   const getMonthWiseLeaveData = () => {
     if (!leaveReport?.leaves || leaveReport.leaves.length === 0) return [];
     
@@ -142,13 +152,12 @@ export default function AdminReportsPage() {
       }
     });
     
-    // Convert to array for radar chart
+    // Convert to array for area chart
     return Object.entries(monthlyLeaves)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([monthKey, count]) => ({
         month: format(parseISO(monthKey + '-01'), 'MMM yyyy'),
-        approvedLeaves: count,
-        fullMark: Math.max(...Object.values(monthlyLeaves)) + 5 // For radar chart scale
+        approvedLeaves: count
       }));
   };
 
@@ -209,16 +218,21 @@ export default function AdminReportsPage() {
 
         <Card className="hover-elevate">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Leaves</CardTitle>
+            <CardTitle className="text-sm font-medium">Leaves Approved This Month</CardTitle>
             <Calendar className="h-4 w-4 text-ring" />
           </CardHeader>
           <CardContent>
             {kpisLoading ? (
               <div className="text-sm text-muted-foreground">Loading...</div>
             ) : (
-              <div className="text-2xl font-bold" data-testid="text-kpi-leaves">
-                {kpis?.pendingLeaves || 0}
-              </div>
+              <>
+                <div className="text-2xl font-bold" data-testid="text-kpi-leaves">
+                  {currentMonthLeaves?.approvedLeaves || 0}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {format(new Date(), 'MMMM yyyy')}
+                </p>
+              </>
             )}
           </CardContent>
         </Card>
@@ -261,23 +275,23 @@ export default function AdminReportsPage() {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="start-date">Start Date</Label>
+                  <Label htmlFor="attendance-start-date">Start Date</Label>
                   <Input
-                    id="start-date"
+                    id="attendance-start-date"
                     type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    data-testid="input-report-start"
+                    value={attendanceStartDate}
+                    onChange={(e) => setAttendanceStartDate(e.target.value)}
+                    data-testid="input-attendance-start"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="end-date">End Date</Label>
+                  <Label htmlFor="attendance-end-date">End Date</Label>
                   <Input
-                    id="end-date"
+                    id="attendance-end-date"
                     type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    data-testid="input-report-end"
+                    value={attendanceEndDate}
+                    onChange={(e) => setAttendanceEndDate(e.target.value)}
+                    data-testid="input-attendance-end"
                   />
                 </div>
               </div>
@@ -289,7 +303,7 @@ export default function AdminReportsPage() {
                   {/* Statistics Cards */}
                   <div className="grid gap-4 md:grid-cols-3">
                     <div className="p-4 border rounded-md">
-                      <p className="text-sm text-muted-foreground">Total Present (All Months)</p>
+                      <p className="text-sm text-muted-foreground">Total Present</p>
                       <p className="text-2xl font-bold text-green-600" data-testid="text-total-present">{totalPresent}</p>
                     </div>
                     <div className="p-4 border rounded-md">
@@ -308,7 +322,7 @@ export default function AdminReportsPage() {
 
                   {/* Monthly Present Employees - Line Chart */}
                   <div>
-                    <h3 className="text-sm font-medium mb-4">Monthly Attendance - Present Employees</h3>
+                    <h3 className="text-sm font-medium mb-4">Monthly Attendance - Present Employees Only</h3>
                     <p className="text-xs text-muted-foreground mb-2">
                       Showing number of present employees per month
                     </p>
@@ -339,7 +353,7 @@ export default function AdminReportsPage() {
                 </>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  Select date range to view attendance report
+                  No attendance data found for the selected date range
                 </div>
               )}
             </CardContent>
@@ -362,8 +376,8 @@ export default function AdminReportsPage() {
                   <Input
                     id="leave-start"
                     type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    value={leaveStartDate}
+                    onChange={(e) => setLeaveStartDate(e.target.value)}
                     data-testid="input-leave-start"
                   />
                 </div>
@@ -372,8 +386,8 @@ export default function AdminReportsPage() {
                   <Input
                     id="leave-end"
                     type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
+                    value={leaveEndDate}
+                    onChange={(e) => setLeaveEndDate(e.target.value)}
                     data-testid="input-leave-end"
                   />
                 </div>
@@ -401,32 +415,41 @@ export default function AdminReportsPage() {
                     </div>
                   </div>
 
-                  {/* Monthly Approved Leaves - Radar Chart */}
+                  {/* Monthly Approved Leaves - Area Chart */}
                   {monthWiseLeaveData.length > 0 && (
                     <div>
                       <h3 className="text-sm font-medium mb-4">Monthly Approved Leaves - Capability Analysis</h3>
                       <p className="text-xs text-muted-foreground mb-2">
-                        Radar chart showing approved leaves distribution across months
+                        Area chart showing approved leaves distribution across months
                       </p>
                       <ResponsiveContainer width="100%" height={400}>
-                        <RadarChart data={monthWiseLeaveData}>
-                          <PolarGrid />
-                          <PolarAngleAxis 
+                        <AreaChart data={monthWiseLeaveData}>
+                          <defs>
+                            <linearGradient id="colorLeaves" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis 
                             dataKey="month" 
-                            tick={{ fontSize: 12 }}
+                            angle={-45}
+                            textAnchor="end"
+                            height={80}
                           />
-                          <PolarRadiusAxis angle={90} domain={[0, 'dataMax']} />
-                          <Radar
-                            name="Approved Leaves"
-                            dataKey="approvedLeaves"
-                            stroke="#3b82f6"
-                            fill="#3b82f6"
-                            fillOpacity={0.6}
-                            strokeWidth={2}
-                          />
+                          <YAxis />
                           <Tooltip />
                           <Legend />
-                        </RadarChart>
+                          <Area
+                            type="monotone"
+                            dataKey="approvedLeaves"
+                            stroke="#3b82f6"
+                            fillOpacity={1}
+                            fill="url(#colorLeaves)"
+                            name="Approved Leaves"
+                            strokeWidth={2}
+                          />
+                        </AreaChart>
                       </ResponsiveContainer>
                     </div>
                   )}
