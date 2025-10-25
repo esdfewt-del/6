@@ -57,3 +57,13 @@
 [x] 55. Attendance Report shows: Total Present, Total Records, Attendance Rate statistics
 [x] 56. Leave Report shows: Total Approved, Total Days, Avg Days/Leave statistics
 [x] 57. Both charts display meaningful monthly trends across 6 months of data
+
+## Reports & Analytics Updates - October 25, 2025
+[x] 58. Changed "Pending Leaves" KPI card to "Leaves Approved This Month" showing current month approved leaves count
+[x] 59. Separated date ranges - Attendance Report has independent start/end dates from Leave Report
+[x] 60. Changed default date range to current month only (October 1-31, 2025) instead of 6 months
+[x] 61. Replaced Radar Chart with Area Chart (capability analysis) for Leave Report
+[x] 62. Area chart features: blue gradient fill, stroke width 2, smooth monotone curves
+[x] 63. Verified all data loads from database only (no sample/mock data)
+[x] 64. Both Attendance and Leave reports have fully independent date filters
+[x] 65. All charts render properly with database data from current month
