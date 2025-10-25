@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Clock, LogIn, LogOut, Coffee, Play, Pause, Calendar } from 'lucide-react';
+import { Clock, LogIn, LogOut, Coffee, Play, Pause } from 'lucide-react';
 import { format, parseISO, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -55,12 +55,6 @@ export default function AttendancePage() {
     enabled: !!user,
     refetchOnWindowFocus: true,
     refetchInterval: 30000,
-  });
-
-  // Get attendance history for selected month
-  const { data: attendanceHistory, isLoading: loadingHistory } = useQuery<Attendance[]>({
-    queryKey: ['/api/attendance/history', user?.id, selectedMonth],
-    enabled: !!user,
   });
 
   // Check-in mutation
@@ -360,69 +354,6 @@ export default function AttendancePage() {
         </CardContent>
       </Card>
 
-      {/* Attendance History */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <CardTitle>Attendance History</CardTitle>
-              <CardDescription>Your attendance records</CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="px-3 py-1.5 border rounded-md text-sm"
-                data-testid="input-month-filter"
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loadingHistory ? (
-            <div className="text-center py-8 text-muted-foreground">Loading history...</div>
-          ) : attendanceHistory && attendanceHistory.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Check-in</TableHead>
-                  <TableHead>Check-out</TableHead>
-                  <TableHead>Total Hours</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {attendanceHistory.map((record) => (
-                  <TableRow key={record.id} data-testid={`attendance-row-${record.id}`}>
-                    <TableCell className="font-medium">
-                      {format(parseISO(record.date), 'MMM dd, yyyy')}
-                    </TableCell>
-                    <TableCell>{format(parseISO(record.checkIn), 'hh:mm a')}</TableCell>
-                    <TableCell>
-                      {record.checkOut ? format(parseISO(record.checkOut), 'hh:mm a') : '-'}
-                    </TableCell>
-                    <TableCell>{record.totalHours || '-'}</TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant={record.status === 'present' ? 'default' : 'secondary'}
-                      >
-                        {record.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No attendance records for this month
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }

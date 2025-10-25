@@ -85,7 +85,7 @@ export default function AdminReportsPage() {
 
   // Get all attendance records for the company with date range
   const { data: allAttendance, isLoading: attendanceLoading } = useQuery<Attendance[]>({
-    queryKey: ['/api/attendance/company', attendanceStartDate, attendanceEndDate],
+    queryKey: [`/api/attendance/company?startDate=${attendanceStartDate}&endDate=${attendanceEndDate}`],
     enabled: !!user && !!attendanceStartDate && !!attendanceEndDate,
   });
 
