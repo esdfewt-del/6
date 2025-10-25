@@ -151,6 +151,37 @@ Following Nano Flows AI branding:
 
 ## Recent Changes
 
+### October 25, 2025 - Reports & Analytics Page Redesign ✅
+- **KPI Cards Update**:
+  - ✅ Changed "Pending Leaves" to "Leaves Approved This Month"
+  - ✅ Shows current month's approved leaves count dynamically
+  - ✅ Displays current month name (e.g., "October 2025")
+  
+- **Independent Date Ranges**:
+  - ✅ Attendance Report has its own start/end date filters
+  - ✅ Leave Report has separate, independent start/end date filters
+  - ✅ Both default to current month (October 1-31, 2025)
+  - ✅ No more shared date state between reports
+  
+- **Attendance Report Enhancements**:
+  - ✅ Line chart shows only present employees (monthly data)
+  - ✅ Default view set to current month instead of 6 months
+  - ✅ Clear visualization of present employees per month
+  - ✅ Statistics: Total Present, Total Records, Attendance Rate
+  
+- **Leave Report (Approved) Enhancements**:
+  - ✅ Replaced Radar Chart with Area Chart (capability analysis)
+  - ✅ Beautiful blue gradient fill for better visualization
+  - ✅ Shows approved leaves distribution across months
+  - ✅ All leaves render properly in the area chart
+  - ✅ Statistics: Total Approved, Total Days, Avg Days/Leave
+  
+- **Data Source**:
+  - ✅ All data loaded from PostgreSQL database only
+  - ✅ No sample or mock data
+  - ✅ Real-time queries to attendance and leave tables
+  - ✅ Proper date range filtering on backend
+
 ### October 24, 2025 - Attendance Management Complete Rebuild ✅
 - **Admin Dashboard - Attendance Management** (Completely Redesigned):
   - ✅ Daily attendance view for ALL employees (not just present ones)
