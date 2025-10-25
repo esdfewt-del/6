@@ -67,3 +67,16 @@
 [x] 63. Verified all data loads from database only (no sample/mock data)
 [x] 64. Both Attendance and Leave reports have fully independent date filters
 [x] 65. All charts render properly with database data from current month
+
+## Reports & Analytics Day-wise Implementation - October 25, 2025
+[x] 66. Updated Attendance Report to show day-wise data instead of month-wise
+[x] 67. Line chart displays present employees for each day in selected period
+[x] 68. All days in date range shown (even days with zero attendance)
+[x] 69. Added date range guards using isBefore/isAfter to filter out-of-range records
+[x] 70. Updated Leave Report to show day-wise approved leaves
+[x] 71. Changed from Area Chart to Bar Chart for better day-wise visualization
+[x] 72. Shows which day how many employees got approved leave
+[x] 73. Leave spans properly clamped to selected date range
+[x] 74. Both reports pre-seed all days in range with zero values
+[x] 75. Architect review passed - date filtering logic verified correct
+[x] 76. All changes documented in replit.md
